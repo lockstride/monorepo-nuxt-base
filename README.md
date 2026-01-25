@@ -1,7 +1,7 @@
 <div align="center">
   <img src=".github/assets/lockstride-logo.png" alt="Lockstride Logo" width="80" />
-  
-  # monorepo-nuxt-base
+
+# monorepo-nuxt-base
 
 **A production-ready, full-stack monorepo template for modern web applications**
 
@@ -196,7 +196,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 ## 🏢 About
 
-Built by [**Lockstride**](https://lockstride.ai) - Accelerating software development with AI-powered tools and templates.
+Built by [**Lockstride**](https://lockstride.ai) - Accelerating software development with AI-powered tools, templates, and workflows.
 
 📧 **Contact:** hello+monorepo@lockstride.ai
 
