@@ -1,0 +1,11 @@
+{
+  "name": "utils",
+  "version": "0.0.1",
+  "scripts": {
+    "dev:build": "nx build utils",
+    "test-unit": "nx run utils:test-unit",
+    "test:coverage": "nx run utils:test-coverage",
+    "lint": "nx lint utils",
+    "lint:fix": "nx lint utils --fix"
+  }
+}

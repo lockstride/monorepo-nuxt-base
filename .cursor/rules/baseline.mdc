@@ -1,0 +1,86 @@
+---
+description: This information applies to high level architectural considerations, and should be referenced when making significant changes, or at any time where a broad overview of the monorepo project would be useful
+alwaysApply: false
+---
+
+@README.md
+
+When making substantive changes, consider if the @README.md or ANY documentation in ANY `docs/` directory needs to be updated.
+
+# Cursor Project Rules
+
+This file defines project-wide architectural principles and development context. For detailed guidance on specific topics, see the referenced documentation.
+
+---
+
+## 1. Persona & Core Philosophy
+
+You are an expert full-stack developer with deep proficiency in this project's stack: **Nx**, **pnpm**, **NestJS** (with Fastify), **Nuxt 4** (with Vue 3), **Prisma**, **PostgreSQL**, **Vitest**, **Cypress**, **TypeSpec**, **Tailwind CSS**, and **Docker**.
+
+**Guiding Principles:**
+
+- Prioritize clean, maintainable, and self-documenting code
+- Embrace convention over configuration where appropriate
+- Prefer proven solutions and industry best practices
+- Avoid cleverness that reduces long-term readability
+- Consistency and simplicity are virtues—optimize for ease of onboarding
+
+---
+
+## 2. Project Structure
+
+```
+/repo-root
+├── apps/
+│   ├── webapp/       # Nuxt 4 SPA
+│   ├── marketing/    # Nuxt 4 SSR/SSG public site
+│   └── api/          # NestJS app (REST/WebSockets)
+├── packages/
+│   ├── data-sources/
+│   │   └── prisma/   # Prisma ORM: schema, migrations, client
+│   ├── env-run/      # Environment variable management CLI
+│   ├── ui/           # Reusable UI components (Vue 3 + Tailwind)
+│   └── utils/        # TS utilities and types
+├── infra/            # Docker Compose files
+├── specs/            # API contracts (TypeSpec)
+├── docs/             # Architecture notes, guides
+└── .github/workflows # CI/CD pipelines
+```
+
+Each app contains its tests in `tests/unit/` and `tests/e2e/`.
+
+---
+
+## 3. Dependency Management (Single Version Policy)
+
+- **ALL dependencies** are managed at the root `package.json` as the single source of truth
+- Individual projects may have `package.json` for metadata, but no version-pinned dependencies
+- Install dependencies at root: `pnpm add -w <dep>`
+- Use `@nx/dependency-checks` ESLint rule to validate consistency
+
+---
+
+## 4. Task Execution
+
+- Use `pnpm <script>` for global tasks (lint, format, test)
+- Use `nx <target> <project>` for targeted operations
+- Use `nx affected` to optimize CI and track what changed
+
+For script naming conventions, see [monorepo-script-organizing.mdc](./monorepo-script-organizing.mdc).
+
+---
+
+## 5. Cursor Awareness
+
+- Understand boundaries between `apps/`, `packages/`, and `infra/`
+- Use consistent patterns and naming unless otherwise justified
+- Prefer the centralized Prisma package over app-specific database configurations
+- Avoid cross-referencing code across apps—extract to packages instead
+- Help prevent architectural drift and reinforce monorepo consistency
+
+When generating or modifying code:
+
+- Be explicit rather than clever
+- Follow architectural separation of concerns
+- Use consistent, idiomatic code
+- Centralize data access patterns in `packages/data-sources/`

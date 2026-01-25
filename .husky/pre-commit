@@ -1,0 +1,8 @@
+echo " Running pre-commit checks..."
+
+pnpm pre-commit || {
+    echo "❌ Pre-commit checks failed. Please fix the issues above."
+    exit 1
+}
+
+echo "✅ All pre-commit checks passed!"

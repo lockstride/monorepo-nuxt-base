@@ -1,0 +1,39 @@
+{
+  "name": "utils",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/utils/src",
+  "projectType": "library",
+  "tags": ["scope:utils", "type:lib"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{projectRoot}/dist"],
+      "options": {
+        "outputPath": "{projectRoot}/dist",
+        "main": "{projectRoot}/src/index.ts",
+        "tsConfig": "{projectRoot}/tsconfig.json",
+        "assets": ["{projectRoot}/*.md"]
+      }
+    },
+    "test-unit": {
+      "executor": "@nx/vitest:test",
+      "options": {
+        "config": "packages/utils/vitest.config.ts"
+      }
+    },
+    "test-coverage": {
+      "executor": "@nx/vitest:test",
+      "options": {
+        "config": "packages/utils/vitest.config.ts",
+        "coverage": true
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["packages/utils/**/*.ts"]
+      }
+    }
+  }
+}

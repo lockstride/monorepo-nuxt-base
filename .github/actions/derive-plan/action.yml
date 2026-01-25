@@ -1,0 +1,59 @@
+name: Derive Plan
+description: Derive build/e2e matrices and flags for CI from Nx affected, dispatch inputs, and FORCE overrides.
+
+inputs:
+  selection_mode:
+    description: affected | all | custom
+    required: false
+    default: affected
+  include_api:
+    description: include api when selection_mode=custom
+    required: false
+    default: 'false'
+  include_webapp:
+    description: include webapp when selection_mode=custom
+    required: false
+    default: 'false'
+  include_marketing:
+    description: include marketing when selection_mode=custom
+    required: false
+    default: 'false'
+  cache_mode:
+    description: reuse | no-cache (for buildx)
+    required: false
+    default: reuse
+  pull_base:
+    description: if true, buildx will attempt to pull newer base image layers
+    required: false
+    default: 'false'
+  force:
+    description: FORCE_REBUILD_ALL (true/1 to enable)
+    required: false
+    default: ''
+  event_name:
+    description: GitHub event name
+    required: true
+  debug_workflows:
+    description: if true, debug workflows
+    required: false
+    default: 'false'
+
+outputs:
+  matrix:
+    description: JSON array of apps to build
+  e2e_matrix:
+    description: JSON array of apps to run e2e for
+  has_build:
+    description: true if build matrix non-empty
+  has_e2e:
+    description: true if e2e matrix non-empty
+  no_cache:
+    description: no-cache flag
+  pull_base:
+    description: pull_base flag
+  force_all:
+    description: force_all flag
+
+runs:
+  using: node20
+  main: index.cjs

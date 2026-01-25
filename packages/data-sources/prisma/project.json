@@ -1,0 +1,98 @@
+{
+  "name": "prisma",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/data-sources/prisma",
+  "projectType": "library",
+  "tags": ["scope:data-sources", "domain:orm", "type:data-access"],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["db:generate"],
+      "outputs": ["{workspaceRoot}/dist/packages/data-sources/prisma"],
+      "options": {
+        "command": "tsc --build packages/data-sources/prisma/tsconfig.json"
+      }
+    },
+    "db:studio": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["db:setup"],
+      "options": {
+        "command": "env-run --env=dev-docker -- prisma studio"
+      }
+    },
+    "db:studio:e2e-docker": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["db:setup:e2e-docker"],
+      "options": {
+        "command": "env-run --env=e2e-docker -- prisma studio"
+      }
+    },
+    "db:migrate": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["db:setup"],
+      "options": {
+        "command": "env-run --env=dev-docker -- prisma migrate dev"
+      }
+    },
+    "db:migrate-deploy": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prisma migrate deploy"
+      }
+    },
+    "db:migrate-reset": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["db:setup"],
+      "options": {
+        "command": "env-run --env=dev-docker -- prisma migrate reset --force"
+      }
+    },
+    "db:seed": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["db:setup"],
+      "options": {
+        "command": "env-run --env=dev-docker -- prisma db seed"
+      }
+    },
+    "db:generate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prisma generate"
+      }
+    },
+    "db:push": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prisma db push"
+      }
+    },
+    "db:setup:e2e-docker": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "infra",
+        "command": "env-run --env=e2e-docker -- docker compose -f ../packages/data-sources/prisma/compose.yml up db --build --wait"
+      }
+    },
+    "db:setup": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "infra",
+        "command": "env-run --env=dev-docker -- docker compose -f compose.local.yml up db --wait"
+      }
+    },
+    "db:teardown": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "infra",
+        "command": "env-run --env=dev-docker -- docker compose -f compose.local.yml down db"
+      }
+    },
+    "db:teardown:e2e-docker": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "infra",
+        "command": "env-run --env=e2e-docker -- docker compose -f ../packages/data-sources/prisma/compose.yml down db -v"
+      }
+    }
+  }
+}

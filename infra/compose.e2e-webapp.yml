@@ -1,0 +1,69 @@
+name: e2e-webapp
+
+x-e2e-db-url: &e2e-db-url postgresql://postgres:postgres@db:5432/postgres?schema=public
+
+services:
+  db:
+    extends:
+      file: ../packages/data-sources/prisma/compose.yml
+      service: db
+    ports: !override
+      - "${E2E_WEBAPP_DB_PORT:-5443}:5432"
+  migrate:
+    extends:
+      file: ../packages/data-sources/prisma/compose.yml
+      service: migrate
+    environment:
+      DATABASE_URL: *e2e-db-url
+    command: ["pnpm", "prisma", "migrate", "reset", "--force"]
+  api:
+    extends:
+      file: ../apps/api/compose.yml
+      service: api
+    build:
+      args:
+        API_PORT: ${E2E_WEBAPP_API_PORT:-4011}
+    environment:
+      DATABASE_URL: *e2e-db-url
+      API_PORT: ${E2E_WEBAPP_API_PORT:-4011}
+    ports: !override
+      - "${E2E_WEBAPP_API_PORT:-4011}:${E2E_WEBAPP_API_PORT:-4011}"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://127.0.0.1:${E2E_WEBAPP_API_PORT:-4011}/api/health",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+  webapp:
+    extends:
+      file: ../apps/webapp/compose.yml
+      service: webapp
+    build:
+      args:
+        WEBAPP_PORT: ${WEBAPP_PORT:-4000}
+    environment:
+      INTEROP_API_DOMAIN: http://api
+      INTEROP_API_PORT: ${E2E_WEBAPP_API_PORT:-4011}
+    ports: !override
+      - "${WEBAPP_PORT:-4000}:${WEBAPP_PORT:-4000}"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://127.0.0.1:${WEBAPP_PORT:-4000}/",
+        ]

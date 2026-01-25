@@ -1,0 +1,14 @@
+{
+  "recommendations": [
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "bradlc.vscode-tailwindcss",
+    "vue.volar",
+    "ms-vscode.vscode-typescript-next",
+    "ms-vscode.vscode-json",
+    "prisma.prisma",
+    "ms-vscode.vscode-docker",
+    "ms-vscode.vscode-git-graph",
+    "ms-vscode.vscode-gitlens"
+  ]
+}

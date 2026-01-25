@@ -1,0 +1,43 @@
+name: Deploy Container
+description: Provider-agnostic container deploy (Render or Northflank) using a unified interface.
+
+inputs:
+  provider:
+    description: "Target provider (render|northflank)"
+    required: true
+  image:
+    description: "Full image ref (tag or digest), e.g. ghcr.io/org/repo/app:sha or ...@sha256:.."
+    required: true
+  environment:
+    description: "Logical environment (staging|production)"
+    required: true
+  service_id:
+    description: "Service identifier (Render service ID; Northflank service name/id)"
+    required: true
+  project:
+    description: "Northflank project identifier (required for northflank)"
+    required: false
+  wait:
+    description: "Whether to wait for deploy to complete"
+    default: "false"
+    required: false
+  timeout_seconds:
+    description: "Max seconds to wait if wait=true"
+    default: "900"
+    required: false
+  poll_interval_seconds:
+    description: "Polling interval seconds if wait=true"
+    default: "5"
+    required: false
+
+  # Secrets (pass from workflow via inputs)
+  render_api_key:
+    description: "Render API key"
+    required: false
+  northflank_token:
+    description: "Northflank API token"
+    required: false
+
+runs:
+  using: node20
+  main: index.cjs

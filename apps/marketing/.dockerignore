@@ -1,0 +1,74 @@
+# Dependencies
+**/node_modules/
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+**/dist/
+**/build/
+**/coverage/
+**/.nuxt/
+**/output/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Testing
+# Use recursive patterns for coverage output at all levels
+**/coverage/
+**/.nyc_output/
+**/cypress/
+**/e2e/
+**tests/
+
+# Logs
+**/logs/
+*.log
+
+# Runtime data
+**/pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Nx cache
+.nx/
+
+# Temporary folders
+**/tmp/
+**/temp/
+
+# Documentation
+**/docs/
+*.md
+
+# Test files
+**/*.test.js
+**/*.test.ts
+**/*.spec.js
+**/*.spec.ts
+
+# Exclude other apps to reduce build context
+apps/api/
+apps/webapp/
+infra/
+packages/data-sources/
+specs/
+tsp-output/

@@ -1,0 +1,91 @@
+{
+  "name": "marketing",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "{projectRoot}",
+  "projectType": "application",
+  "tags": ["scope:marketing", "type:app"],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "nuxi build",
+        "cwd": "{projectRoot}"
+      }
+    },
+    "preview": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "command": "env-run --env=dev-host -- nuxi preview --port ${MARKETING_PORT}",
+        "cwd": "{projectRoot}"
+      }
+    },
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}",
+        "command": "env-run --env=dev-host -- nuxi dev"
+      }
+    },
+    "_test-unit": {
+      "executor": "@nx/vitest:test",
+      "options": {
+        "config": "{projectRoot}/vitest.config.ts"
+      }
+    },
+    "test-unit": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "env-run --env=dev-host -- nx run marketing:_test-unit"
+      }
+    },
+    "test-coverage": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "env-run --env=dev-host -- nx run marketing:_test-unit --coverage"
+      }
+    },
+    "_test-e2e": {
+      "executor": "@nx/cypress:cypress",
+      "dependsOn": ["setup:e2e-docker"],
+      "options": {
+        "cypressConfig": "{projectRoot}/cypress.config.mjs"
+      }
+    },
+    "test-e2e": {
+      "executor": "nx:run-commands",
+      "inputs": ["default", "ci"],
+      "options": {
+        "command": "env-run --env=e2e-docker -- nx run marketing:_test-e2e && nx run marketing:teardown:e2e-docker"
+      }
+    },
+    "setup:e2e-docker": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "infra",
+        "command": "env-run --env=e2e-docker -- docker compose -f compose.e2e-marketing.yml up --build --wait"
+      }
+    },
+    "teardown:e2e-docker": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "infra",
+        "command": "env-run --env=e2e-docker -- docker compose -f compose.e2e-marketing.yml down -v"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": [
+          "{projectRoot}/**/*.ts",
+          "{projectRoot}/**/*.js",
+          "{projectRoot}/**/*.cjs",
+          "{projectRoot}/**/*.mjs",
+          "{projectRoot}/**/*.vue",
+          "{projectRoot}/**/*.json"
+        ]
+      }
+    }
+  }
+}
