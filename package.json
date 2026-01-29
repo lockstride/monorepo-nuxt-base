@@ -55,7 +55,11 @@
     "dev-setup": "pnpm husky && cypress install && chmod +x .husky/pre-push && chmod +x .husky/pre-commit"
   },
   "keywords": [],
-  "author": "",
+  "author": {
+    "name": "Lockstride",
+    "email": "hello@lockstride.ai",
+    "url": "https://lockstride.ai"
+  },
   "license": "ISC",
   "packageManager": "pnpm@10.27.0",
   "type": "module",
