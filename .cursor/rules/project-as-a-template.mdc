@@ -1,7 +1,0 @@
----
-description: Guide cursor on aspect of the project related to this being a template (i.e., starting place) for other projects.
-alwaysApply: false
----
-This is meant to be a template for any project utilizing this opinionated monorepo architecture. Keep this in mind when naming anything. Try to use general purpose/generic names that will be appropriate across different projects focused on varying objectives. Use functional names whenever possible, as those will be consistent from project to project.
-
-USER SHOULD REMOVE THIS RULE AFTER CLONING this project.

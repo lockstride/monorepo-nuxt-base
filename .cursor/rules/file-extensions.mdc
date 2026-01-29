@@ -1,5 +1,0 @@
----
-description: Apply this rule whenever introducing new Javascript-like files
-alwaysApply: false
----
-When introducing new JavaScript-like files to any project in this monorepo, always use an appropriately specific file extension: `.ts`, `.cjs`, or `.mjs`. Never use `.js`, as it is ambiguous regarding module system.
