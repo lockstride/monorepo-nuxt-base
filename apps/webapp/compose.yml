@@ -1,0 +1,31 @@
+services:
+  webapp:
+    build:
+      context: ../../
+      dockerfile: apps/webapp/Dockerfile
+      args:
+        WEBAPP_PORT: ${WEBAPP_PORT:-3000}
+    restart: always
+    environment:
+      NODE_ENV: ${NODE_ENV:-test}
+      INTEROP_API_DOMAIN: ${INTEROP_API_DOMAIN:-http://api}
+      INTEROP_API_PORT: ${INTEROP_API_PORT:-3001}
+    ports:
+      - "${WEBAPP_PORT:-3000}:${WEBAPP_PORT:-3000}"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://127.0.0.1:${WEBAPP_PORT:-3000}/",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s

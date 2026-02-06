@@ -1,0 +1,9 @@
+echo "🔍 Running pre-push checks..."
+
+# Run the pre-push script (includes CI checks and E2E tests)
+pnpm pre-push || {
+    echo "❌ Pre-push checks failed."
+    exit 1
+}
+
+echo "✅ All pre-push checks passed!"

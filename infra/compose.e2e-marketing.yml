@@ -1,0 +1,22 @@
+name: e2e-marketing
+
+services:
+  marketing:
+    extends:
+      file: ../apps/marketing/compose.yml
+      service: marketing
+    build:
+      args:
+        MARKETING_PORT: ${MARKETING_PORT:-4002}
+    ports: !override
+      - "${MARKETING_PORT:-4002}:${MARKETING_PORT:-4002}"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://127.0.0.1:${MARKETING_PORT:-4002}/",
+        ]

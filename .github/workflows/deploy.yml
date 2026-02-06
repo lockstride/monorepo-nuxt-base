@@ -1,0 +1,158 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: "Target provider"
+        required: true
+        type: choice
+        options: [render, northflank]
+        default: render
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options: [staging, production]
+      deploy_api:
+        description: "Deploy api"
+        required: true
+        type: boolean
+        default: true
+      deploy_webapp:
+        description: "Deploy webapp"
+        required: true
+        type: boolean
+        default: true
+      deploy_marketing:
+        description: "Deploy marketing"
+        required: true
+        type: boolean
+        default: true
+      image_ref:
+        description: "Tag or digest to deploy (defaults to HEAD commit SHA)"
+        required: false
+        type: string
+        default: ""
+      wait:
+        description: "Wait for deploy to complete"
+        required: false
+        type: boolean
+        default: true
+
+env:
+  REGISTRY: ghcr.io/${{ github.repository }}
+
+jobs:
+  plan:
+    name: Plan deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      matrix: ${{ steps.mk.outputs.matrix }}
+      image_ref: ${{ steps.ref.outputs.ref }}
+    steps:
+      - name: Build matrix from checkboxes
+        id: mk
+        run: |
+          set -euo pipefail
+          arr=()
+          if [[ "${{ inputs.deploy_api }}" == "true" ]]; then arr+=("api"); fi
+          if [[ "${{ inputs.deploy_webapp }}" == "true" ]]; then arr+=("webapp"); fi
+          if [[ "${{ inputs.deploy_marketing }}" == "true" ]]; then arr+=("marketing"); fi
+          if [[ ${#arr[@]} -eq 0 ]]; then echo "No apps selected for deployment" >&2; exit 1; fi
+          json="["
+          for i in "${arr[@]}"; do
+            if [[ "$json" != "[" ]]; then json+=","; fi
+            json+="\"$i\""
+          done
+          json+="]"
+          echo "matrix=$json" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve image ref
+        id: ref
+        run: |
+          ref="${{ inputs.image_ref }}"
+          if [[ -z "$ref" ]]; then ref="${{ github.sha }}"; fi
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    name: Deploy apps
+    needs: plan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    environment: ${{ inputs.environment }}
+    concurrency:
+      group: deploy-${{ inputs.environment }}-${{ matrix.app }}
+      cancel-in-progress: true
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Establish image name
+        id: img
+        run: |
+          ref='${{ needs.plan.outputs.image_ref }}'
+          if [[ "$ref" == *"sha256:"* ]]; then
+            echo "image_name=${{ env.REGISTRY }}/${{ matrix.app }}@$ref" >> "$GITHUB_OUTPUT"
+          else
+            echo "image_name=${{ env.REGISTRY }}/${{ matrix.app }}:$ref" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Resolve service id (Render)
+        id: render_svc
+        if: ${{ inputs.provider == 'render' }}
+        run: |
+          set -euo pipefail
+          case "${{ matrix.app }}" in
+            api)  SVC_ID="${{ secrets.RENDER_SERVICE_ID_API }}" ;;
+            webapp) SVC_ID="${{ secrets.RENDER_SERVICE_ID_WEBAPP }}" ;;
+            marketing) SVC_ID="${{ secrets.RENDER_SERVICE_ID_MARKETING }}" ;;
+            *) echo "Unknown app ${{ matrix.app }}" >&2; exit 1;;
+          esac
+          if [[ -z "$SVC_ID" ]]; then
+            echo "::error::Secret for ${{ matrix.app }} is empty or not accessible"
+            exit 1
+          fi
+          echo "service_id=$SVC_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve service id (Northflank)
+        id: nf_svc
+        if: ${{ inputs.provider == 'northflank' }}
+        run: |
+          set -euo pipefail
+          case "${{ matrix.app }}" in
+            api)  echo "service_id=${{ secrets.NORTHFLANK_SERVICE_API }}" >> "$GITHUB_OUTPUT" ;;
+            webapp) echo "service_id=${{ secrets.NORTHFLANK_SERVICE_WEBAPP }}" >> "$GITHUB_OUTPUT" ;;
+            marketing) echo "service_id=${{ secrets.NORTHFLANK_SERVICE_MARKETING }}" >> "$GITHUB_OUTPUT" ;;
+            *) echo "Unknown app ${{ matrix.app }}" >&2; exit 1;;
+          esac
+
+      - name: Deploy (Render)
+        if: ${{ inputs.provider == 'render' }}
+        uses: ./.github/actions/deploy-container
+        with:
+          provider: render
+          environment: ${{ inputs.environment }}
+          image: ${{ steps.img.outputs.image_name }}
+          service_id: ${{ steps.render_svc.outputs.service_id }}
+          wait: ${{ inputs.wait && 'true' || 'false' }}
+          render_api_key: ${{ secrets.RENDER_API_KEY }}
+
+      - name: Deploy (Northflank)
+        if: ${{ inputs.provider == 'northflank' }}
+        uses: ./.github/actions/deploy-container
+        with:
+          provider: northflank
+          environment: ${{ inputs.environment }}
+          image: ${{ steps.img.outputs.image_name }}
+          service_id: ${{ steps.nf_svc.outputs.service_id }}
+          project: ${{ secrets.NORTHFLANK_PROJECT }}
+          wait: ${{ inputs.wait && 'true' || 'false' }}
+          northflank_token: ${{ secrets.NORTHFLANK_TOKEN }}

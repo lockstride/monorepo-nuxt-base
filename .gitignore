@@ -1,0 +1,50 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Node / Package Managers
+node_modules
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+# Ignore other lockfiles as this project uses pnpm
+package-lock.json
+yarn.lock
+# Nx Monorepo
+.nx/cache
+dist
+coverage
+# Prisma 7+ generated client (TypeScript source files)
+packages/data-sources/prisma/generated/
+# Cypress Cache
+node_modules/.cache/cypress
+# Build & Temp
+.nuxt
+*.tsbuildinfo
+temp
+tmp
+# Environment Variables & Secrets
+.env
+.env.*
+!.env.e2e-docker
+!.env.example
+!.env.*.example
+# IDE / Editor Configs
+.idea/
+*.sublime-workspace
+# OS-specific
+.DS_Store
+Thumbs.db
+.output
+
+# Temp files
+*.tmp
+*.tmp.*
+**/__snapshots__/
+
+
+.nx/workspace-data
+.github/instructions/nx.instructions.md
+vite.config.*.timestamp*
+vitest.config.*.timestamp*
+
+# SpecStory extension output -- captures conversation history and cursor rules
+.specstory/

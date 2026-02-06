@@ -1,0 +1,11 @@
+{
+  "name": "ui",
+  "version": "0.0.1",
+  "scripts": {
+    "dev:build": "nx build ui",
+    "test-unit": "nx run ui:test-unit",
+    "test:coverage": "nx run ui:test-coverage",
+    "lint": "nx lint ui",
+    "lint:fix": "nx lint ui --fix"
+  }
+}

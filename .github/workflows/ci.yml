@@ -1,0 +1,395 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      selection_mode:
+        description: "Which apps to build: affected (Nx graph), all, or custom selection"
+        required: true
+        type: choice
+        options: [affected, all, custom]
+        default: affected
+      include_api:
+        description: "When selection_mode=custom, include api"
+        required: false
+        type: boolean
+        default: true
+      include_webapp:
+        description: "When selection_mode=custom, include webapp"
+        required: false
+        type: boolean
+        default: true
+      include_marketing:
+        description: "When selection_mode=custom, include marketing"
+        required: false
+        type: boolean
+        default: true
+      cache_mode:
+        description: "Docker build cache behavior: reuse (fast) or no-cache (clean rebuild)"
+        required: true
+        type: choice
+        options: [reuse, no-cache]
+        default: reuse
+      pull_base:
+        description: "If true, buildx attempts to pull newer base image layers"
+        required: true
+        type: boolean
+        default: false
+
+env:
+  NODE_VERSION: "24"
+  PNPM_VERSION: "10.27.0"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    name: Plan Affected Apps
+    runs-on: ubuntu-latest
+    environment: ci
+
+    outputs:
+      matrix: ${{ steps.derive.outputs.matrix }}
+      e2e_matrix: ${{ steps.derive.outputs.e2e_matrix }}
+      has_build: ${{ steps.derive.outputs.has_build }}
+      has_e2e: ${{ steps.derive.outputs.has_e2e }}
+      no_cache: ${{ steps.derive.outputs.no_cache }}
+      pull_base: ${{ steps.derive.outputs.pull_base }}
+      force_all: ${{ steps.derive.outputs.force_all }}
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: tree:0
+
+      - name: Setup runner for CI
+        uses: ./.github/actions/setup-runner-for-ci
+
+      - name: Setup Nx SHAs for affected commands
+        uses: nrwl/nx-set-shas@v4
+
+      - name: Derive matrices and flags
+        id: derive
+        uses: ./.github/actions/derive-plan
+        with:
+          selection_mode: ${{ inputs.selection_mode }}
+          include_api: ${{ inputs.include_api && 'true' || 'false' }}
+          include_webapp: ${{ inputs.include_webapp && 'true' || 'false' }}
+          include_marketing: ${{ inputs.include_marketing && 'true' || 'false' }}
+          cache_mode: ${{ inputs.cache_mode }}
+          pull_base: ${{ inputs.pull_base && 'true' || 'false' }}
+          force: ${{ vars.FORCE_REBUILD_ALL }}
+          event_name: ${{ github.event_name }}
+          debug_workflows: ${{ vars.DEBUG_WORKFLOWS }}
+
+      - name: Append plan summary
+        run: |
+          {
+            echo "### Plan Summary"
+            echo "- Build matrix: \`${{ steps.derive.outputs.matrix }}\`"
+            echo "- E2E matrix: \`${{ steps.derive.outputs.e2e_matrix }}\`"
+            echo "- Has build: \`${{ steps.derive.outputs.has_build }}\`"
+            echo "- Has e2e: \`${{ steps.derive.outputs.has_e2e }}\`"
+            echo "- Force all: \`${{ steps.derive.outputs.force_all }}\`"
+            echo "- No cache: \`${{ steps.derive.outputs.no_cache }}\`"
+            echo "- Pull base: \`${{ steps.derive.outputs.pull_base }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  fast-checks:
+    name: Fast Checks
+    needs: plan
+    runs-on: ubuntu-latest
+    environment: ci
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: tree:0
+
+      - name: Setup runner for CI
+        uses: ./.github/actions/setup-runner-for-ci
+
+      - name: Setup Nx SHAs for affected commands
+        uses: nrwl/nx-set-shas@v4
+
+      - name: Run affected lint/build in parallel
+        if: needs.plan.outputs.force_all != 'true'
+        run: pnpm nx affected --targets=lint,build --parallel
+
+      - name: Run all lint/build in parallel (forced)
+        if: needs.plan.outputs.force_all == 'true'
+        run: pnpm nx run-many --targets=lint,build --all --parallel
+
+      - name: Run format:check
+        run: pnpm nx format:check --all
+
+      - name: Security audit
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: pnpm audit --audit-level moderate
+
+      - name: Run affected test-coverage
+        if: needs.plan.outputs.force_all != 'true'
+        run: pnpm nx affected --targets=test-coverage
+
+      - name: Run all test-coverage (forced)
+        if: needs.plan.outputs.force_all == 'true'
+        run: pnpm nx run-many --targets=test-coverage --all
+
+      - name: Aggregate and update coverage badge
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GIST_ID: ${{ secrets.COVERAGE_GIST_ID }}
+          GIST_TOKEN: ${{ secrets.COVERAGE_GIST_TOKEN }}
+        run: |
+          BADGE_JSON=$(node .github/scripts/aggregate-coverage.cjs)
+          PAYLOAD=$(jq -n --arg content "$BADGE_JSON" '{"files":{"monorepo-nuxt-base-coverage.json":{"content":$content}}}')
+          curl -s -X PATCH \
+            -H "Authorization: token $GIST_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -d "$PAYLOAD" \
+            "https://api.github.com/gists/$GIST_ID"
+
+      - name: Typespec validate
+        run: pnpm typespec:validate
+
+  e2e:
+    name: E2E Tests
+    needs: plan
+    if: needs.plan.outputs.has_e2e == 'true'
+    runs-on: ubuntu-latest
+    environment: ci
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ fromJSON(needs.plan.outputs.e2e_matrix) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup runner for CI
+        uses: ./.github/actions/setup-runner-for-ci
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Verify Docker is installed
+        run: |
+          docker --version
+          docker compose version
+
+      - name: Pre-pull base images
+        run: |
+          docker pull node:24 &
+          docker pull node:24-alpine &
+          docker pull postgres:18 &
+          wait
+
+      - name: Determine Cypress cache path and version
+        if: matrix.app == 'webapp' || matrix.app == 'marketing'
+        id: cypress_info
+        run: |
+          set -euo pipefail
+          echo "dir=$(pnpm exec cypress cache path)" >> "$GITHUB_OUTPUT"
+          echo "version=$(node -e "console.log(require('cypress/package.json').version)")" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Cypress binary cache
+        if: matrix.app == 'webapp' || matrix.app == 'marketing'
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.cypress_info.outputs.dir }}
+          key: ${{ runner.os }}-cypress-${{ steps.cypress_info.outputs.version }}
+
+      - name: Install Cypress binary
+        if: matrix.app == 'webapp' || matrix.app == 'marketing'
+        run: pnpm exec cypress install --force
+
+      - name: Run e2e tests for ${{ matrix.app }}
+        env:
+          API_PORT: ${{ secrets.API_PORT }}
+          MARKETING_PORT: ${{ secrets.MARKETING_PORT }}
+          WEBAPP_PORT: ${{ secrets.WEBAPP_PORT }}
+          NODE_ENV: ${{ secrets.NODE_ENV }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BUILD_CONFIG: ${{ secrets.BUILD_CONFIG }}
+        run: pnpm nx run ${{ matrix.app }}:test-e2e
+
+      - name: Collect docker compose diagnostics (ps)
+        if: failure()
+        run: |
+          set -euo pipefail
+          case "${{ matrix.app }}" in
+            api)      FILE="infra/compose.e2e-api.yml" ;;
+            webapp)   FILE="infra/compose.e2e-webapp.yml" ;;
+            marketing) FILE="infra/compose.e2e-marketing.yml" ;;
+            *) echo "Unknown app ${{ matrix.app }}" >&2; exit 0;;
+          esac
+          echo "Using compose file: $FILE"
+          docker compose -f "$FILE" ps -a || true
+
+      - name: Collect docker compose diagnostics (logs)
+        if: failure()
+        run: |
+          set -euo pipefail
+          mkdir -p e2e-logs
+          case "${{ matrix.app }}" in
+            api)      FILE="infra/compose.e2e-api.yml" ;;
+            webapp)   FILE="infra/compose.e2e-webapp.yml" ;;
+            marketing) FILE="infra/compose.e2e-marketing.yml" ;;
+            *) echo "Unknown app ${{ matrix.app }}" >&2; exit 0;;
+          esac
+          echo "Collecting logs from: $FILE"
+          docker compose -f "$FILE" logs --no-color > "e2e-logs/${{ matrix.app }}.log" || true
+
+      - name: Upload e2e docker logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-logs-${{ matrix.app }}
+          path: e2e-logs
+          retention-days: 7
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-results
+          path: |
+            **/test-results/
+            **/coverage/
+          retention-days: 7
+
+  build-and-push:
+    name: Build & Push Images
+    needs: [plan, fast-checks, e2e]
+    if: >-
+      ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch')
+      && needs.plan.outputs.has_build == 'true'
+    runs-on: ubuntu-latest
+    environment: ci
+    permissions:
+      contents: read
+      actions: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Establish tag names
+        id: tags
+        run: |
+          echo "sha_tag=ghcr.io/${{ github.repository }}/${{ matrix.app }}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          echo "edge_tag=ghcr.io/${{ github.repository }}/${{ matrix.app }}:edge" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push ${{ matrix.app }} image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/${{ matrix.app }}/Dockerfile
+          push: true
+          pull: ${{ needs.plan.outputs.pull_base == 'true' }}
+          no-cache: ${{ needs.plan.outputs.no_cache == 'true' }}
+          tags: |
+            ${{ steps.tags.outputs.sha_tag }}
+            ${{ steps.tags.outputs.edge_tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Save image digest
+        run: echo "${{ steps.build.outputs.digest }}" > digest-${{ matrix.app }}.txt
+
+      - name: Upload image digest (per app)
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-digest-${{ matrix.app }}
+          path: digest-${{ matrix.app }}.txt
+          retention-days: 7
+
+      - name: Append build summary
+        run: |
+          {
+            echo "### Built ${{ matrix.app }}"
+            echo "- Image (sha tag): \`${{ steps.tags.outputs.sha_tag }}\`"
+            echo "- Image (edge tag): \`${{ steps.tags.outputs.edge_tag }}\`"
+            echo "- Digest: \`${{ steps.build.outputs.digest }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  merge-digests:
+    name: Merge Image Digests & Cleanup
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Download per-app digest artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: image-digest-*
+          merge-multiple: true
+          path: digests
+
+      - name: Find digest files
+        id: find-digests
+        run: |
+          shopt -s nullglob
+          files=(digests/*.txt)
+          echo "count=${#files[@]}" >> "$GITHUB_OUTPUT"
+
+      - name: Append merged digest summary
+        run: |
+          shopt -s nullglob
+          files=(digests/*.txt)
+          {
+            echo "### Image Digests"
+            if [ ${#files[@]} -eq 0 ]; then
+              echo "- No image digests produced."
+            else
+              for f in "${files[@]}"; do
+                app=$(basename "$f" .txt | sed 's/^digest-//')
+                sha=$(cat "$f")
+                echo "- ${app}: \`${sha}\`"
+              done
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Merge per-app digest artifacts
+        uses: actions/upload-artifact/merge@v4
+        if: steps.find-digests.outputs.count != '0'
+        with:
+          name: image-digests
+          pattern: image-digest-*
+          delete-merged: true

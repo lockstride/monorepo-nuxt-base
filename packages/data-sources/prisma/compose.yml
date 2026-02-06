@@ -1,0 +1,29 @@
+services:
+  db:
+    image: postgres:18
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-postgres}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    tmpfs: # Ephemeral storage - data is lost when container stops
+      - /var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+  migrate:
+    restart: no
+    build:
+      context: ../../../
+      dockerfile: packages/data-sources/prisma/Dockerfile
+    environment:
+      NODE_ENV: ${NODE_ENV:-test}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@db:5432/postgres?schema=public}
+    depends_on:
+      db:
+        condition: service_healthy

@@ -1,0 +1,15 @@
+# Ignore everything except what we need for Prisma operations
+*
+
+# Allow only essential files
+!package.json
+!pnpm-workspace.yaml
+!pnpm-lock.yaml
+!packages/data-sources/prisma/package.json
+!packages/data-sources/prisma/schema.prisma
+!packages/data-sources/prisma/migrations/
+!packages/data-sources/prisma/seed.ts
+
+# Keep these at the end to ensure they're included
+!node_modules/.pnpm/
+!node_modules/@prisma/

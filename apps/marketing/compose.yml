@@ -1,0 +1,26 @@
+services:
+  marketing:
+    build:
+      context: ../../
+      dockerfile: apps/marketing/Dockerfile
+      args:
+        MARKETING_PORT: ${MARKETING_PORT:-3002}
+    restart: always
+    environment:
+      NODE_ENV: ${NODE_ENV:-test}
+    ports:
+      - "${MARKETING_PORT:-3002}:${MARKETING_PORT:-3002}"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://127.0.0.1:${MARKETING_PORT:-3002}/",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s

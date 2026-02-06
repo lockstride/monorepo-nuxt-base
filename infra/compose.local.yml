@@ -1,0 +1,22 @@
+name: local
+include:
+  - ../apps/marketing/compose.yml
+  - ../apps/api/compose.yml
+  - ../apps/webapp/compose.yml
+services:
+  db:
+    extends:
+      file: ../packages/data-sources/prisma/compose.yml
+      service: db
+    tmpfs: !override [] # Override ephemeral storage so data is not lost when container stops
+    volumes:
+      - postgres_data:/var/lib/postgresql
+  migrate:
+    extends:
+      file: ../packages/data-sources/prisma/compose.yml
+      service: migrate
+    # Keep container running for 1 hour for utility and debugging purposes
+    # Just make sure no other containers depend on this one completing successfully
+    command: ["/bin/sh", "-c", "pnpm prisma validate && sleep 3600"]
+volumes:
+  postgres_data:

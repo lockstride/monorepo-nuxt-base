@@ -1,0 +1,27 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "../../dist/out-tsc",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "types": ["node", "nuxt"],
+    "target": "es2021",
+    "strictNullChecks": true,
+    "noImplicitAny": true,
+    "strictBindCallApply": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "declaration": true,
+    "declarationMap": true
+  },
+  "include": ["**/*.ts", "**/*.vue", "**/*.mjs"],
+  "exclude": [
+    "tests/**",
+    "*.spec.ts",
+    "*.test.ts",
+    "node_modules",
+    ".nuxt",
+    "dist"
+  ]
+}

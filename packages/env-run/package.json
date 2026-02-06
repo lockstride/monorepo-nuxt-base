@@ -1,0 +1,27 @@
+{
+  "name": "env-run",
+  "version": "1.0.0",
+  "description": "Environment variable injection wrapper with Infisical support",
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "bin": {
+    "env-run": "./dist/src/cli.js"
+  },
+  "scripts": {
+    "build": "nx build env-run",
+    "test-unit": "nx run env-run:test-unit",
+    "test:coverage": "nx run env-run:test-coverage",
+    "lint": "nx lint env-run",
+    "lint:fix": "nx lint env-run --fix",
+    "prepare": "NX_DAEMON=false nx run env-run:build"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.2"
+  },
+  "dependencies": {
+    "@infisical/sdk": "^4.0.6"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
