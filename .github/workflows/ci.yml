@@ -52,7 +52,7 @@ jobs:
   plan:
     name: Plan Affected Apps
     runs-on: ubuntu-latest
-    environment: ci
+    environment: CI
 
     outputs:
       matrix: ${{ steps.derive.outputs.matrix }}
@@ -110,7 +110,7 @@ jobs:
     name: Fast Checks
     needs: plan
     runs-on: ubuntu-latest
-    environment: ci
+    environment: CI
     permissions:
       contents: read
       actions: read
@@ -174,7 +174,7 @@ jobs:
     needs: plan
     if: needs.plan.outputs.has_e2e == 'true'
     runs-on: ubuntu-latest
-    environment: ci
+    environment: CI
     permissions:
       contents: read
       actions: read
@@ -226,12 +226,12 @@ jobs:
 
       - name: Run e2e tests for ${{ matrix.app }}
         env:
-          API_PORT: ${{ secrets.API_PORT }}
-          MARKETING_PORT: ${{ secrets.MARKETING_PORT }}
-          WEBAPP_PORT: ${{ secrets.WEBAPP_PORT }}
-          NODE_ENV: ${{ secrets.NODE_ENV }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          BUILD_CONFIG: ${{ secrets.BUILD_CONFIG }}
+          API_PORT: ${{ secrets.API_PORT || vars.API_PORT }}
+          MARKETING_PORT: ${{ secrets.MARKETING_PORT || vars.MARKETING_PORT }}
+          WEBAPP_PORT: ${{ secrets.WEBAPP_PORT || vars.WEBAPP_PORT }}
+          NODE_ENV: ${{ secrets.NODE_ENV || vars.NODE_ENV }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL || vars.DATABASE_URL }}
+          BUILD_CONFIG: ${{ secrets.BUILD_CONFIG || vars.BUILD_CONFIG }}
         run: pnpm nx run ${{ matrix.app }}:test-e2e
 
       - name: Collect docker compose diagnostics (ps)
@@ -286,7 +286,7 @@ jobs:
       ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch')
       && needs.plan.outputs.has_build == 'true'
     runs-on: ubuntu-latest
-    environment: ci
+    environment: CI
     permissions:
       contents: read
       actions: read
