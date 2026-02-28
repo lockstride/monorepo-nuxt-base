@@ -13,8 +13,12 @@ COPY pnpm-lock.yaml ./
 COPY packages/data-sources/prisma/package.json ./packages/data-sources/prisma/
 
 # Install pnpm and dependencies
+ENV CYPRESS_INSTALL_BINARY=0
 RUN echo "📦 Enabling corepack and installing dependencies..."
-RUN corepack enable && corepack prepare pnpm@10.27.0 --activate && pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    corepack enable && corepack prepare pnpm@10.30.3 --activate && \
+    pnpm config set store-dir /pnpm/store && \
+    pnpm install --frozen-lockfile
 
 # Copy package source files
 RUN echo "📁 Copying Prisma package source files..."
@@ -45,7 +49,7 @@ FROM node:24-alpine
 WORKDIR /app
 
 RUN echo "🔧 Stage 2: Setting up runtime environment..."
-RUN corepack enable && corepack prepare pnpm@10.27.0 --activate
+RUN corepack enable && corepack prepare pnpm@10.30.3 --activate
 
 # Copy workspace root files needed for Prisma CLI and seeding
 RUN echo "📦 Copying dependencies from builder stage..."

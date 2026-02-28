@@ -18,8 +18,12 @@ COPY nx.json ./
 COPY apps/webapp/package.json apps/webapp/package.json
 
 # Install pnpm and dependencies
+ENV CYPRESS_INSTALL_BINARY=0
 RUN echo "📦 Enabling corepack and installing dependencies..."
-RUN corepack enable && corepack prepare pnpm@10.27.0 --activate && pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    corepack enable && corepack prepare pnpm@10.30.3 --activate && \
+    pnpm config set store-dir /pnpm/store && \
+    pnpm install --frozen-lockfile
 
 # Build the application
 FROM deps AS builder

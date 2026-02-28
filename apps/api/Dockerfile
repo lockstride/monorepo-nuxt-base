@@ -16,12 +16,17 @@ COPY pnpm-workspace.yaml ./
 COPY package.json ./
 COPY pnpm-lock.yaml ./
 COPY nx.json ./
-# Copy app package.json (minimal metadata only now)
+# Copy app and workspace package.json files (minimal metadata only now)
 COPY apps/api/package.json apps/api/package.json
+COPY packages/utils/package.json packages/utils/package.json
 
 # Install pnpm and dependencies (need all deps for build)
+ENV CYPRESS_INSTALL_BINARY=0
 RUN echo "📦 Enabling corepack and installing dependencies..."
-RUN corepack enable && corepack prepare pnpm@10.27.0 --activate && pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    corepack enable && corepack prepare pnpm@10.30.3 --activate && \
+    pnpm config set store-dir /pnpm/store && \
+    pnpm install --frozen-lockfile
 
 # Generate Prisma client and build the application
 FROM deps AS builder
@@ -30,6 +35,7 @@ RUN echo "🏗️ Stage 2: Building API application..."
 # Copy only necessary files for API build, excluding Nuxt apps
 COPY apps/api/ ./apps/api/
 COPY packages/data-sources/prisma/ ./packages/data-sources/prisma/
+COPY packages/utils/ ./packages/utils/
 COPY tsconfig.base.json ./
 COPY prisma.config.ts ./
 COPY vitest.workspace.ts ./
@@ -48,14 +54,16 @@ RUN echo "🔧 Stage 3: Setting up production runtime..."
 
 # Enable corepack and pnpm in runtime image for prod deps install
 RUN echo "📦 Enabling corepack in runtime image..."
-RUN corepack enable && corepack prepare pnpm@10.27.0 --activate
+RUN corepack enable && corepack prepare pnpm@10.30.3 --activate
 
 # Copy the optimized package.json with only required dependencies
 COPY --from=builder /app/dist/apps/api/package.json ./package.json
 
 # Install only production dependencies based on the generated package.json
 RUN echo "📦 Installing production dependencies..."
-RUN pnpm install --prod --no-frozen-lockfile
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm config set store-dir /pnpm/store && \
+    pnpm install --prod --no-frozen-lockfile
 
 # Install @prisma/client runtime (required by generated Prisma client but not auto-detected by Nx)
 # The schema-specific generated client imports from @prisma/client/runtime/client at runtime
@@ -63,7 +71,9 @@ RUN pnpm install --prod --no-frozen-lockfile
 # Reading version from builder's package.json ensures sync with pnpm-lock.yaml
 RUN echo "📦 Installing @prisma/client runtime..."
 COPY --from=builder /app/package.json /tmp/root-package.json
-RUN PRISMA_VERSION=$(node -e "console.log(require('/tmp/root-package.json').dependencies['@prisma/client'].replace('^', ''))") && \
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm config set store-dir /pnpm/store && \
+    PRISMA_VERSION=$(node -e "console.log(require('/tmp/root-package.json').dependencies['@prisma/client'].replace('^', ''))") && \
     pnpm add @prisma/client@$PRISMA_VERSION --prod && \
     rm /tmp/root-package.json
 
