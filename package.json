@@ -90,7 +90,8 @@
       "editorconfig>minimatch": ">=9.0.6",
       "@nx/devkit>minimatch": ">=10.2.3",
       "@nx/jest>minimatch": ">=10.2.3",
-      "nx>minimatch": ">=10.2.3"
+      "nx>minimatch": ">=10.2.3",
+      "serialize-javascript": ">=7.0.3"
     }
   },
   "devDependencies": {
